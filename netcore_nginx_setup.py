@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python
 #encoding:utf-8
 #执行该脚本会配置asp环境、supervisord、nginx环境，只需上传项目包,开启防火墙使用端口,添加supervisord配置文件即可
 import os
@@ -23,6 +23,7 @@ def server_update(yum_163_config, yum_update_config):
         python_shell("mv CentOS-Base.repo CentOS-Base.repo.backup", "/etc/yum.repos.d/")
         urllib.urlretrieve("http://mirrors.163.com/.help/CentOS7-Base-163.repo", "/etc/yum.repos.d/CentOS7-Base-163.repo")
         python_shell("yum clean all && yum makecache")
+    #不升级内核
     with open(yum_update_config, "r+") as f:
         f.seek(0)
         kernel_file = "exclude=centos-release*\n"
@@ -124,26 +125,34 @@ WantedBy=multi-user.target
         """)
 
 def main():
-    #server_message("你好","服务器")
+    server_message("服务器开始配置","请等待服务器配置成功提醒")
+    #更换软件源和不升级内核
     server_update("/etc/yum.repos.d/CentOS7-Base-163.repo", "/etc/yum.conf")
+    #关闭selinux
     disable_selinux("/etc/selinux/config")
+    #配置asp环境
     python_shell("rpm -Uvh https://packages.microsoft.com/config/rhel/7/packages-microsoft-prod.rpm")
     python_shell("yum install epel-release -y")
     python_shell("yum update -y")
     python_shell("yum install dotnet-sdk-2.2 -y")
     python_shell("yum install libgdiplus-devel -y")
     python_shell("ln -sf libdl-2.*.so libdl.so", "/usr/lib64")
+    #安装并开机启动redis
     python_shell("yum install redis -y")
     python_shell("systemctl start redis && systemctl enable redis")
+    #修改优化系统参数
     python_shell("ulimit -n 102400")
     add_two_file("/etc/security/limits.conf", "soft nofile 102400\nhard nofile 102400\n")
     add_one_file("/etc/sysctl.conf", "fs.inotify.max_user_instances = 102400\n")
     mod_file("/proc/sys/fs/inotify/max_user_instances", "102400")
+    #安装配置supervisord
     python_shell("yum install python-setuptools -y")
     supervisord("/etc/supervisor/", "/usr/lib/systemd/system/supervisord.service")
-    python_shell("yum install nginx -y && systemctl start nginx")
+    #安装并开机启动nginx
+    python_shell("yum install nginx -y && systemctl enable nginx")
     python_shell("firewall-cmd --zone=public --add-port=80/tcp --permanent")
     python_shell("systemctl restart firewalld")
+
     server_message("环境已部署完成", "请查看服务器")
 
 if __name__ == "__main__":
