@@ -8,7 +8,7 @@ import urllib
 
 # server酱发送消息
 def server_message(title, content):
-    server_api = "https://sc.ftqq.com/SCU4540T76fc41872bbeff3016cab71ac402503b5853639d939d7.send"
+    server_api = "https://sc.ftqq.com/{key}.send"
     values = {
     "text": title,
     "desp": content
